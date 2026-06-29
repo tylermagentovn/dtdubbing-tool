@@ -1,12 +1,9 @@
-import subprocess
 import shutil
+import subprocess
 
 import pytest
-from fastapi.testclient import TestClient
 
-from app.main import app
-
-client = TestClient(app)
+from app.tools.srt_split.service import split_srt_files
 
 ffmpeg_available = shutil.which("ffmpeg") is not None and shutil.which("ffprobe") is not None
 
@@ -25,7 +22,7 @@ def _make_test_video(path, duration_seconds: int) -> None:
 
 
 @pytest.mark.skipif(not ffmpeg_available, reason="ffmpeg/ffprobe not installed on this machine")
-def test_split_srt_writes_per_episode_files_with_rebased_timestamps(tmp_path):
+def test_split_srt_files_writes_per_episode_files_with_rebased_timestamps(tmp_path):
     ep1_video = tmp_path / "ep01.mp4"
     ep2_video = tmp_path / "ep02.mp4"
     _make_test_video(ep1_video, duration_seconds=5)
@@ -38,19 +35,11 @@ def test_split_srt_writes_per_episode_files_with_rebased_timestamps(tmp_path):
         encoding="utf-8",
     )
 
-    res = client.post(
-        "/api/tools/srt-split/split",
-        json={
-            "srt_path": str(srt_path),
-            "video_paths": [str(ep1_video), str(ep2_video)],
-        },
-    )
-    assert res.status_code == 200
-    body = res.json()
+    outcome = split_srt_files(str(srt_path), [str(ep1_video), str(ep2_video)])
 
-    assert len(body["episodes"]) == 2
-    ep1_out = body["episodes"][0]["output_path"]
-    ep2_out = body["episodes"][1]["output_path"]
+    assert len(outcome.episodes) == 2
+    ep1_out = outcome.episodes[0].output_path
+    ep2_out = outcome.episodes[1].output_path
 
     assert ep1_out.endswith("ep01.srt")
     assert ep2_out.endswith("ep02.srt")
@@ -60,3 +49,12 @@ def test_split_srt_writes_per_episode_files_with_rebased_timestamps(tmp_path):
 
     assert "00:00:01,000 --> 00:00:02,000" in ep1_content
     assert "00:00:02,000 --> 00:00:03,000" in ep2_content  # 7s - 5s ep1 duration = 2s
+    assert outcome.warnings == []
+
+
+def test_split_srt_files_requires_at_least_one_video_path(tmp_path):
+    srt_path = tmp_path / "master.srt"
+    srt_path.write_text("1\n00:00:01,000 --> 00:00:02,000\nHi\n", encoding="utf-8")
+
+    with pytest.raises(ValueError):
+        split_srt_files(str(srt_path), [])

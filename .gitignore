@@ -1,5 +1,4 @@
 backend/venv/
-backend/static/
 backend/__pycache__/
 backend/app/**/__pycache__/
 backend/.pytest_cache/
@@ -7,8 +6,5 @@ backend/build/
 backend/dist/
 backend/*.spec
 backend/vendor/
-
-frontend/node_modules/
-frontend/dist/
 
 .DS_Store

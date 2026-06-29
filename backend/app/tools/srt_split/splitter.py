@@ -2,8 +2,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from app.tools.srt_split.schemas import CueWarning
 from app.tools.srt_split.srt_parser import Cue
+
+
+@dataclass
+class CueWarning:
+    episode_index: int
+    cue_index: int
+    message: str
 
 
 @dataclass
